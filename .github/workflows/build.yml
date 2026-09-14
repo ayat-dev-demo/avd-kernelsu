@@ -82,8 +82,17 @@ jobs:
           chmod +x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-          # Initialize config fragment
-          touch "$GITHUB_WORKSPACE/gki.fragment"
+          # Initialize config fragment.
+          # Force these drivers to =m so the virtual_device build produces .ko
+          # modules (at 6.1.162 they default to =y, which trips the kernel_build
+          # module_outs assert: "Unable to find virtio-gpu.ko/failover.ko/net_failover.ko"
+          # -> the whole virtual_device build fails -> goldfish transport .ko never built).
+          # Building them as modules mirrors the stock AVD arrangement.
+          cat > "$GITHUB_WORKSPACE/gki.fragment" <<'FRAG'
+CONFIG_DRM_VIRTIO_GPU=m
+CONFIG_FAILOVER=m
+CONFIG_NET_FAILOVER=m
+FRAG
 
       - name: Download Kernel Repository
         uses: ./.github/actions/download-kernel
