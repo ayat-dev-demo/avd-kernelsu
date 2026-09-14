@@ -211,8 +211,19 @@ jobs:
               --defconfig_fragment=${DEFCONFIG_FRAG} \
               ${KERNEL_TARGET} || exit 1
 
-            # Build virtual device modules for AVD
+            # Build virtual device modules for AVD.
+            # IMPORTANT: the main Image was already built above with the
+            # configure-kernel fragment (virtio/goldfish =y -> bootable Image).
+            # But the virtual_device kernel_build's module_outs expects virtio*.ko
+            # and goldfish .ko as MODULES; with them =y it asserts "Unable to find
+            # virtio_blk.ko/virtio-gpu.ko/..." and dies before emitting
+            # goldfish_address_space/pipe/sync.ko. So blank the fragment now so this
+            # build gets virtio/goldfish =m and actually produces the .ko we need.
+            # (setlocalversion -dirty is already neutered by clean-flags, so blanking
+            # the tracked fragment does NOT change vermagic -> modules still load on the Image.)
             if [ "${{ inputs.build_modules }}" = "true" ]; then
+              printf '# clean fragment for module build\n' > common/arch/arm64/configs/gki.fragment
+              printf '# clean fragment for module build\n' > common/arch/x86/configs/gki.fragment
               tools/bazel run \
                 --config=fast \
                 --lto=thin \
