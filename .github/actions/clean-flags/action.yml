@@ -20,10 +20,14 @@ runs:
           # Remove rust_binder.ko from module_outs (Android 16)
           find . -type f \( -name "*.bazel" -o -name "*.bzl" -o -name "BUILD" \) -exec grep -l "rust_binder" {} \; -exec sed -i '/rust_binder/d' {} \;
 
-          # Forced-builtin AVD drivers (virtio/goldfish set =y in gki.fragment) must be
-          # dropped from the GKI module list, else bazel fails: "Unable to find *.ko".
-          find . -type f \( -name "modules.bzl" -o -name "*.bzl" -o -name "*.bazel" -o -name "BUILD" \) \
-            -exec sed -i -E '/"[^"]*(virtio|goldfish)[^"]*\.ko",?/d' {} \;
+          # virtio is forced =y (built-in) for the AVD, so drop it from the GKI module
+          # list (common/modules.bzl _COMMON_GKI_MODULES_LIST) else bazel fails with
+          # "Unable to find drivers/.../virtio_*.ko". Scope STRICTLY to that file and to
+          # virtio only: editing *.bazel would delete the goldfish `out = "*.ko"` lines
+          # in common-modules/virtual-device/BUILD.bazel and break the module build.
+          if [ -f ./common/modules.bzl ]; then
+            sed -i -E '/"[^"]*virtio[^"]*\.ko",?/d' ./common/modules.bzl
+          fi
 
           # Disable KMI symbol list strict mode
           find . -type f \( -name "*.bazel" -o -name "*.bzl" -o -name "BUILD" \) -exec sed -i 's/kmi_symbol_list_strict_mode\s*=\s*True/kmi_symbol_list_strict_mode = False/g' {} \;
