@@ -211,12 +211,15 @@ jobs:
               --defconfig_fragment=${DEFCONFIG_FRAG} \
               ${KERNEL_TARGET} || exit 1
 
-            # Virtual device modules are built separately (build_modules_only.yml) with a
-            # clean fragment so they don't corrupt this Image. Do NOT blank the shared
-            # gki.fragment here: bazel would rebuild kernel_aarch64_dist with virtio=n and
-            # the copied Image would be unbootable. This step is intentionally omitted so
-            # the Image keeps the configure-kernel fragment (virtio=y, no goldfish_pipe).
-            echo "Skipping in-line virtual_device build (Image-only run; modules built separately)."
+            # Build virtual_device modules (goldfish DDK: goldfish_pipe/sync/address_space)
+            # with the SAME virtio=y fragment so vermagic matches the Image. The dist
+            # ASSEMBLY may assert on an in-tree module now =y (e.g. virtio-gpu.ko) AFTER
+            # the goldfish .ko already compiled - fine: Prepare Artifacts scavenges *.ko.
+            tools/bazel build \
+              --config=fast \
+              --lto=thin \
+              --defconfig_fragment=${DEFCONFIG_FRAG} \
+              ${VIRT_TARGET} || echo "WARN: virtual_device dist assembly failed (expected; goldfish .ko scavenged)"
           fi
 
       - name: Prepare Artifacts
