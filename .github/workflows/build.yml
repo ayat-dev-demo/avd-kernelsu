@@ -204,6 +204,12 @@ jobs:
               VIRT_TARGET="//common-modules/virtual-device:virtual_device_aarch64_dist"
             fi
 
+            # virtio is forced =y for the Image, so it is no longer produced as a module.
+            # Drop virtio entries from the GKI module list for THIS (Image) build only;
+            # we restore them before the virtual_device build (which needs virtio=m .ko).
+            cp common/modules.bzl /tmp/modules.bzl.orig
+            sed -i -E '/"[^"]*virtio[^"]*\.ko",?/d' common/modules.bzl
+
             # 1) Build the GKI kernel with our virtio=y fragment (built-in virtio).
             tools/bazel build \
               --config=fast \
@@ -216,6 +222,10 @@ jobs:
             mkdir -p "$GITHUB_WORKSPACE/saved"
             SAVED_IMG=$(find "$GITHUB_WORKSPACE/kernel/bazel-bin" -name Image -path "*kernel_aarch64*" 2>/dev/null | head -1)
             [ -n "$SAVED_IMG" ] && cp "$SAVED_IMG" "$GITHUB_WORKSPACE/saved/Image" && echo "Saved virtio=y Image: $SAVED_IMG"
+
+            # Restore the full GKI module list so the stock-config (virtio=m) build below
+            # has virtio in module_outs (else: 'modules built but not copied').
+            cp /tmp/modules.bzl.orig common/modules.bzl
 
             # 2) Build virtual_device modules (goldfish DDK) with the module set's OWN
             # stock config (goldfish/virtio =m) - do NOT pass our gki.fragment, which
