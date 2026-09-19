@@ -21,7 +21,7 @@ on:
         default: ''
         required: false
       build_modules:
-        description: 'Build virtual device modules (for AVD)'
+        description: 'Build virtual device modules (untuk AVD)'
         type: boolean
         default: true
 
