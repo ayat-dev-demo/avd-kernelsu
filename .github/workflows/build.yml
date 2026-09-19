@@ -204,22 +204,28 @@ jobs:
               VIRT_TARGET="//common-modules/virtual-device:virtual_device_aarch64_dist"
             fi
 
-            # Build kernel
+            # 1) Build the GKI kernel with our virtio=y fragment (built-in virtio).
             tools/bazel build \
               --config=fast \
               --lto=thin \
               --defconfig_fragment=${DEFCONFIG_FRAG} \
               ${KERNEL_TARGET} || exit 1
 
-            # Build virtual_device modules (goldfish DDK: goldfish_pipe/sync/address_space)
-            # with the SAME virtio=y fragment so vermagic matches the Image. The dist
-            # ASSEMBLY may assert on an in-tree module now =y (e.g. virtio-gpu.ko) AFTER
-            # the goldfish .ko already compiled - fine: Prepare Artifacts scavenges *.ko.
+            # Save our virtio=y Image NOW: the virtual_device build below uses the stock
+            # config (virtio=m) and will rebuild/clobber bazel-bin's kernel_aarch64 Image.
+            mkdir -p "$GITHUB_WORKSPACE/saved"
+            SAVED_IMG=$(find "$GITHUB_WORKSPACE/kernel/bazel-bin" -name Image -path "*kernel_aarch64*" 2>/dev/null | head -1)
+            [ -n "$SAVED_IMG" ] && cp "$SAVED_IMG" "$GITHUB_WORKSPACE/saved/Image" && echo "Saved virtio=y Image: $SAVED_IMG"
+
+            # 2) Build virtual_device modules (goldfish DDK) with the module set's OWN
+            # stock config (goldfish/virtio =m) - do NOT pass our gki.fragment, which
+            # disables goldfish_address_space and breaks DDK analysis ('out not specified').
+            # vermagic still matches our Image (same source/localversion). goldfish .ko
+            # get compiled; the dist assembly may still fail - Prepare Artifacts scavenges.
             tools/bazel build \
               --config=fast \
               --lto=thin \
-              --defconfig_fragment=${DEFCONFIG_FRAG} \
-              ${VIRT_TARGET} || echo "WARN: virtual_device dist assembly failed (expected; goldfish .ko scavenged)"
+              ${VIRT_TARGET} || echo "WARN: virtual_device build/assembly failed (goldfish .ko scavenged from tree)"
           fi
 
       - name: Prepare Artifacts
@@ -227,6 +233,13 @@ jobs:
           ARCH="${{ inputs.arch }}"
           OUT_DIR="$GITHUB_WORKSPACE/output"
           mkdir -p "$OUT_DIR" "$OUT_DIR/modules"
+
+          # Prefer the virtio=y Image we saved before the virtual_device build (bazel-bin
+          # may now hold a virtio=m kernel Image from the module build).
+          if [ -f "$GITHUB_WORKSPACE/saved/Image" ]; then
+            cp "$GITHUB_WORKSPACE/saved/Image" "$OUT_DIR/Image"
+            echo "Using saved virtio=y Image"
+          fi
 
           # Find dist output from any build system
           # build.sh outputs to: out/<target>/dist/
