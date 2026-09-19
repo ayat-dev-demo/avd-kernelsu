@@ -37,7 +37,7 @@ jobs:
         id: parse
         run: |
           # Format: [KERNEL_VERSION].[SUBLEVEL]-[ANDROID_VERSION]-[PATCH_LEVEL]
-          # Example: 6.1.75-android14-2024-05
+          # Example: 6.1.75-android14-2024-05 -
           INPUT_VERSION="${{ inputs.kernel_version }}"
 
           IFS='-' read -r KERNEL_PART ANDROID_PART REST <<< "$INPUT_VERSION"
