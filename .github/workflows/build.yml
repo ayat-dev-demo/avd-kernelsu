@@ -304,21 +304,7 @@ jobs:
           ls -la "$OUT_DIR/modules/" 2>/dev/null | grep -iE "goldfish|virtio|failover|dma|drm" || true
           echo "total scavenged: $(ls "$OUT_DIR/modules/"*.ko 2>/dev/null | wc -l)"
 
-          # 3. Create initramfs with matching modules for AVD use
-          MODULE_COUNT=$(ls "$OUT_DIR/modules"/*.ko 2>/dev/null | wc -l)
-          if [ "$MODULE_COUNT" -gt 0 ]; then
-            echo "=== Creating initramfs with $MODULE_COUNT matching modules ==="
-            TMPRD=$(mktemp -d)
-            mkdir -p "$TMPRD/lib/modules"
-            cp "$OUT_DIR/modules"/*.ko "$TMPRD/lib/modules/"
-            if [ -f "$OUT_DIR/modules/modules.load" ]; then
-              cp "$OUT_DIR/modules/modules.load" "$TMPRD/lib/modules/"
-            else
-              ls "$TMPRD/lib/modules"/*.ko | xargs -n1 basename > "$TMPRD/lib/modules/modules.load"
-            fi
-            (cd "$TMPRD" && find . | cpio -o -H newc 2>/dev/null | gzip > "$OUT_DIR/modules-initramfs.gz")
-            rm -rf "$TMPRD"
-          fi
+          # (modules-initramfs.gz generation removed: redundant with modules/ dir)
 
           # Remove empty modules dir if no modules found
           rmdir "$OUT_DIR/modules" 2>/dev/null || true
